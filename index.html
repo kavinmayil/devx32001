@@ -1,115 +1,197 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ESP Dashboard</title>
+    <title>ESP Monitoring Dashboard</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         body {
-            font-family: Arial;
-            background: #0f172a;
-            color: white;
-            text-align: center;
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: #0b1220;
+            color: #e2e8f0;
         }
 
-        h1 {
-            color: #38bdf8;
+        header {
+            text-align: center;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            background: #111827;
+            border-bottom: 1px solid #1f2937;
         }
 
         .container {
             display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 30px;
+            justify-content: space-around;
+            padding: 20px;
         }
 
         .card {
-            background: #1e293b;
+            background: #111827;
             padding: 20px;
-            border-radius: 15px;
-            width: 300px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            width: 40%;
+            box-shadow: 0 0 15px rgba(0,0,0,0.4);
+        }
+
+        .title {
+            font-size: 18px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #1f2937;
+            padding-bottom: 5px;
         }
 
         .value {
-            font-size: 18px;
-            margin: 8px 0;
+            margin: 6px 0;
+            font-size: 14px;
         }
 
-        .good { color: #22c55e; }
-        .bad { color: #ef4444; }
+        canvas {
+            margin-top: 20px;
+            background: #020617;
+            border-radius: 10px;
+        }
     </style>
 </head>
 
 <body>
 
-<h1>⚡ ESP32 Live Dashboard</h1>
+<header>ESP32 Monitoring Dashboard</header>
 
 <div class="container">
     <div class="card">
-        <h2>ESP 1</h2>
+        <div class="title">ESP 1</div>
         <div id="esp1"></div>
     </div>
 
     <div class="card">
-        <h2>ESP 2</h2>
+        <div class="title">ESP 2</div>
         <div id="esp2"></div>
     </div>
 </div>
 
+<div style="padding:20px;">
+    <canvas id="voltageChart"></canvas>
+</div>
+
 <script>
 
-// 🔗 CHANGE THIS to your GitHub RAW links
+// GitHub RAW URLs
 const esp1_url = "https://raw.githubusercontent.com/kavinmayil/devx32001/main/esp1.json";
 const esp2_url = "https://raw.githubusercontent.com/kavinmayil/devx32001/main/esp2.json";
 
-// 🎲 Random voltage generator (3.1 to 3.6)
+// Voltage arrays for graph
+let labels = [];
+let esp1Data = [];
+let esp2Data = [];
+
+// Random voltage (simulation)
 function randomVoltage() {
     return (Math.random() * (3.6 - 3.1) + 3.1).toFixed(2);
 }
 
-// 📶 Signal quality
-function signalStatus(rssi) {
-    return rssi > -60 ? "good" : "bad";
+// WiFi speed simulation
+function wifiSpeed() {
+    return Math.floor(Math.random() * 80) + 20;
 }
 
-// 📊 Display function
-function displayData(id, data) {
-
-    // override voltage for demo
-    let voltage = randomVoltage();
-
+// Display data
+function display(id, data, voltage, speed) {
     document.getElementById(id).innerHTML = `
-        <div class="value">📟 Device: ${data.device}</div>
-        <div class="value">🌐 IP: ${data.ip}</div>
-        <div class="value ${signalStatus(data.wifi_rssi)}">
-            📶 WiFi RSSI: ${data.wifi_rssi}
-        </div>
-        <div class="value">⚡ Voltage: ${voltage} V</div>
-        <div class="value">📊 Sensor: ${data.sensor}</div>
-        <div class="value">💡 LED: ${data.led_state}</div>
-        <div class="value">🔌 Pin LED: ${data.pins.LED}</div>
-        <div class="value">🔌 Voltage Pin: ${data.pins.VOLTAGE_PIN}</div>
+        <div class="value">Device: ${data.device}</div>
+        <div class="value">IP: ${data.ip}</div>
+        <div class="value">WiFi RSSI: ${data.wifi_rssi}</div>
+        <div class="value">WiFi Speed: ${speed} Mbps</div>
+        <div class="value">Voltage: ${voltage} V</div>
+        <div class="value">Sensor: ${data.sensor}</div>
+        <div class="value">LED State: ${data.led_state}</div>
+        <div class="value">Pin LED: ${data.pins.LED}</div>
+        <div class="value">Voltage Pin: ${data.pins.VOLTAGE_PIN}</div>
     `;
 }
 
-// 🔄 Fetch data
+// Chart setup
+const ctx = document.getElementById('voltageChart').getContext('2d');
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: [
+            {
+                label: 'ESP1 Voltage',
+                data: esp1Data,
+                borderWidth: 2,
+                tension: 0.3
+            },
+            {
+                label: 'ESP2 Voltage',
+                data: esp2Data,
+                borderWidth: 2,
+                tension: 0.3
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            x: {
+                ticks: { color: "#94a3b8" }
+            },
+            y: {
+                ticks: { color: "#94a3b8" }
+            }
+        },
+        plugins: {
+            legend: {
+                labels: { color: "#e2e8f0" }
+            }
+        }
+    }
+});
+
+// Load data
 async function loadData() {
     try {
-        let res1 = await fetch(esp1_url);
-        let res2 = await fetch(esp2_url);
+        const res1 = await fetch(esp1_url);
+        const res2 = await fetch(esp2_url);
 
-        let data1 = await res1.json();
-        let data2 = await res2.json();
+        const d1 = await res1.json();
+        const d2 = await res2.json();
 
-        displayData("esp1", data1);
-        displayData("esp2", data2);
+        let v1 = randomVoltage();
+        let v2 = randomVoltage();
 
-    } catch (err) {
-        console.log("Error loading data", err);
+        let s1 = wifiSpeed();
+        let s2 = wifiSpeed();
+
+        display("esp1", d1, v1, s1);
+        display("esp2", d2, v2, s2);
+
+        // Update graph
+        let time = new Date().toLocaleTimeString();
+
+        labels.push(time);
+        esp1Data.push(v1);
+        esp2Data.push(v2);
+
+        if (labels.length > 10) {
+            labels.shift();
+            esp1Data.shift();
+            esp2Data.shift();
+        }
+
+        chart.update();
+
+    } catch (e) {
+        console.log("Error:", e);
     }
 }
 
-// ⏱ Auto refresh every 5 sec
+// Refresh every 5 sec
 setInterval(loadData, 5000);
 loadData();
 
