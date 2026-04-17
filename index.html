@@ -1,1 +1,119 @@
 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            color: #38bdf8;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 15px;
+            width: 300px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .value {
+            font-size: 18px;
+            margin: 8px 0;
+        }
+
+        .good { color: #22c55e; }
+        .bad { color: #ef4444; }
+    </style>
+</head>
+
+<body>
+
+<h1>⚡ ESP32 Live Dashboard</h1>
+
+<div class="container">
+    <div class="card">
+        <h2>ESP 1</h2>
+        <div id="esp1"></div>
+    </div>
+
+    <div class="card">
+        <h2>ESP 2</h2>
+        <div id="esp2"></div>
+    </div>
+</div>
+
+<script>
+
+// 🔗 CHANGE THIS to your GitHub RAW links
+const esp1_url = "https://raw.githubusercontent.com/kavinmayil/devx32001/main/esp1.json";
+const esp2_url = "https://raw.githubusercontent.com/kavinmayil/devx32001/main/esp2.json";
+
+// 🎲 Random voltage generator (3.1 to 3.6)
+function randomVoltage() {
+    return (Math.random() * (3.6 - 3.1) + 3.1).toFixed(2);
+}
+
+// 📶 Signal quality
+function signalStatus(rssi) {
+    return rssi > -60 ? "good" : "bad";
+}
+
+// 📊 Display function
+function displayData(id, data) {
+
+    // override voltage for demo
+    let voltage = randomVoltage();
+
+    document.getElementById(id).innerHTML = `
+        <div class="value">📟 Device: ${data.device}</div>
+        <div class="value">🌐 IP: ${data.ip}</div>
+        <div class="value ${signalStatus(data.wifi_rssi)}">
+            📶 WiFi RSSI: ${data.wifi_rssi}
+        </div>
+        <div class="value">⚡ Voltage: ${voltage} V</div>
+        <div class="value">📊 Sensor: ${data.sensor}</div>
+        <div class="value">💡 LED: ${data.led_state}</div>
+        <div class="value">🔌 Pin LED: ${data.pins.LED}</div>
+        <div class="value">🔌 Voltage Pin: ${data.pins.VOLTAGE_PIN}</div>
+    `;
+}
+
+// 🔄 Fetch data
+async function loadData() {
+    try {
+        let res1 = await fetch(esp1_url);
+        let res2 = await fetch(esp2_url);
+
+        let data1 = await res1.json();
+        let data2 = await res2.json();
+
+        displayData("esp1", data1);
+        displayData("esp2", data2);
+
+    } catch (err) {
+        console.log("Error loading data", err);
+    }
+}
+
+// ⏱ Auto refresh every 5 sec
+setInterval(loadData, 5000);
+loadData();
+
+</script>
+
+</body>
+</html>
